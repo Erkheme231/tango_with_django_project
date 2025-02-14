@@ -1,0 +1,14 @@
+{% extends "rango/base.html" %}
+
+{% block title_block %}
+    About Rango
+{% endblock %}
+
+{% block body_block %}
+    <h1>About Rango</h1>
+    <p>Rango is a web application built using Django.</p>
+    <p>This is the about page where you can learn more about the project.</p>
+
+    <!-- Keeping the static image -->
+    <img src="{% static 'images/rango.jpg' %}" alt="Rango Image">
+{% endblock %}
