@@ -10,23 +10,25 @@ from django.shortcuts import redirect
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth import logout
 from django.contrib.auth import login, authenticate, logout
-
+from datetime import datetime
 
 
 def index(request):
     category_list = Category.objects.order_by('-likes')[:5]
-
-    context_dict = {
-        'boldmessage': 'Crunchy, creamy, cookie, candy, cupcake!',
-        'categories': category_list
-    }
-
+    page_list = Page.objects.order_by('-views')[:5]
+    context_dict = {}
+    context_dict['boldmessage'] = 'Crunchy, creamy, cookie, candy, cupcake!'
+    context_dict['categories'] = category_list
+    context_dict['pages'] = page_list
+    visitor_cookie_handler(request)
+    context_dict['visits'] = request.session['visits']
+    response = render(request, 'rango/index.html', context=context_dict)
     return render(request, 'rango/index.html', context=context_dict)
 
-
 def about(request):
-    return render(request, 'rango/about.html')
-
+    visitor_cookie_handler(request)
+    context_dict = {'visits': request.session('visits', 1)}
+    return render(request, 'rango/about.html', context=context_dict)
 
 def show_category(request, category_name_slug):
     context_dict = {}
@@ -87,6 +89,7 @@ def add_page(request, category_name_slug):
     return render(request, 'rango/add_page.html', {'form': form, 'category': category})
 def get_category_list(current_category=None):
     return {'categories': Category.objects.all(), 'current_category': current_category}
+
 def register(request):
     registered = False
     if request.method == 'POST':
@@ -108,6 +111,8 @@ def register(request):
         user_form = UserForm()
         profile_form = UserProfileForm()
     return render(request, 'rango/register.html', {'user_form': user_form, 'profile_form': profile_form, 'registered': registered})
+
+
 def user_login(request):
     if request.method == 'POST':
         username = request.POST.get('username')
@@ -124,10 +129,51 @@ def user_login(request):
             return HttpResponse("Invalid login details supplied.")
     else:
         return render(request, 'rango/login.html')
+
 @login_required
 def restricted(request):
     return HttpResponse("Since you're logged in, you can see this text!")
+
 @login_required
 def user_logout(request):
     logout(request)
     return redirect(reverse('rango:index'))
+
+def my_view(request):
+    request.session['favorite_color'] = 'blue'
+    color = request.session.get('favorite_color', 'default_color')
+    return render(request, 'template_name.html', {'color': color})
+
+
+def visitor_cookie_handler(request, response):
+    visits = int(request.COOKIES.get('visits', '1'))
+    last_visit_cookie = request.COOKIES.get('last_visit', str(datetime.now()))
+    last_visit_time = datetime.strptime(last_visit_cookie[:-7],
+                                        '%Y-%m-%d %H:%M:%S')
+    if (datetime.now() - last_visit_time).days > 0:
+        visits = visits + 1
+        response.set_cookie('last_visit', str(datetime.now()))
+    else:
+        response.set_cookie('last_visit', last_visit_cookie)
+    response.set_cookie('visits', visits)
+
+
+def get_server_side_cookie(request, cookie, default_val=None):
+    val = request.session.get(cookie)
+    if not val:
+        val = default_val
+    return val
+
+
+def visitor_cookie_handler(request):
+    visits = int(request.session.get('visits', '1'))
+    last_visit_cookie = request.session.get('last_visit', str(datetime.now()))
+    last_visit_time = datetime.strptime(last_visit_cookie[:-7], "%Y-%m-%d %H:%M:%S")
+    
+    if (datetime.now() - last_visit_time).days > 0:
+        visits += 1
+        request.session['last_visit'] = str(datetime.now())
+    else:
+        request.session['last_visit'] = last_visit_cookie
+    
+    request.session['visits'] = visits
